@@ -96,6 +96,9 @@ export interface AnalyticsState {
   gravity: LiquidationGravity;
   compression: CompressionState;
   trap: TrapRisk;
+  cvd: CVDState;
+  tape: TapeState;
+  oiDivergence: OIDivergenceState;
   lastUpdate: number;
 }
 
@@ -127,4 +130,52 @@ export interface HistoricalSnapshot {
   openInterest: number;
   fundingRate: number;
   price: number;
+}
+
+// CVD (Cumulative Volume Delta) state
+export interface CVDState {
+  cumulative: number;
+  delta5m: number;
+  delta15m: number;
+  delta1h: number;
+  momentum: 'strong_buy' | 'buy' | 'neutral' | 'sell' | 'strong_sell';
+  divergence: 'bullish' | 'bearish' | null;
+  lastUpdate: number;
+}
+
+// Trade tape entry
+export interface TapeEntry {
+  timestamp: number;
+  price: number;
+  size: number;
+  side: 'buy' | 'sell';
+  notional: number;
+  isWhale: boolean;
+}
+
+// Tape state
+export interface TapeState {
+  recentTrades: TapeEntry[];
+  whaleCount5m: number;
+  whaleBuyVolume: number;
+  whaleSellVolume: number;
+  buyIntensity: number;  // 0-100
+  sellIntensity: number; // 0-100
+  lastWhale: TapeEntry | null;
+}
+
+// OI x Price Divergence
+export type OIDivergencePattern =
+  | 'short_covering'    // Price up + OI down = weak rally
+  | 'new_shorts'        // Price down + OI up = trend continuation down
+  | 'new_longs'         // Price up + OI up = strong rally
+  | 'long_liquidation'  // Price down + OI down = capitulation
+  | null;
+
+export interface OIDivergenceState {
+  score: number;  // -100 to +100
+  pattern: OIDivergencePattern;
+  strength: 'weak' | 'moderate' | 'strong';
+  priceChange: number;
+  oiChange: number;
 }

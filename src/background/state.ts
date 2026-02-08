@@ -5,14 +5,20 @@ import type {
   VolatilityState,
   VolumeState,
   HistoricalSnapshot,
+  CVDState,
+  TapeState,
+  OIDivergenceState,
 } from '@/types/state';
-import type { AssetContext, L2BookResponse, Candle, FundingHistoryEntry } from '@/types/api';
+import type { AssetContext, L2BookResponse, Candle, FundingHistoryEntry, WsTrade } from '@/types/api';
 import { getMetaAndAssetCtxs, getL2Book, getCandles, getFundingHistory } from './api';
 import { wsManager } from './websocket';
 import { calculatePressureMap } from '@/calculations/pressure';
 import { calculateLiquidationGravity } from '@/calculations/gravity';
 import { detectCompression, calculateVolatilityState, calculateVolumeState } from '@/calculations/compression';
 import { calculateTrapRisk, createSnapshot } from '@/calculations/trap';
+import { cvdCalculator } from '@/calculations/cvd';
+import { tapeTracker } from '@/calculations/tape';
+import { oiDivergenceDetector } from '@/calculations/oiDivergence';
 
 const POLL_INTERVAL = 5000;
 const CANDLE_INTERVAL = 60000;
@@ -51,12 +57,14 @@ export class StateManager {
   }
 
   private notify(): void {
+    console.log('[State] notify called, listeners:', this.listeners.size, 'state:', this.state ? 'set' : 'null');
     if (this.state) {
       this.listeners.forEach((l) => l(this.state!));
     }
   }
 
   async setCoin(coin: string): Promise<void> {
+    console.log('[State] setCoin called:', coin, 'current:', this.currentCoin);
     if (this.currentCoin === coin) return;
 
     this.cleanup();
@@ -73,10 +81,13 @@ export class StateManager {
 
     // Take initial snapshot
     this.takeSnapshot();
+    console.log('[State] setCoin complete, state:', this.state ? 'set' : 'null');
   }
 
   private async fetchInitialData(): Promise<void> {
     if (!this.currentCoin) return;
+
+    console.log('[State] Fetching initial data for:', this.currentCoin);
 
     try {
       const [metaData, book, candles, funding] = await Promise.all([
@@ -93,7 +104,14 @@ export class StateManager {
         ),
       ]);
 
+      console.log('[State] Got metaData, contexts size:', metaData.contexts.size);
+      console.log('[State] Got book levels:', book?.levels?.length);
+      console.log('[State] Got candles:', candles?.length);
+      console.log('[State] Got funding:', funding?.length);
+
       this.assetContext = metaData.contexts.get(this.currentCoin) || null;
+      console.log('[State] Asset context for', this.currentCoin, ':', this.assetContext ? 'found' : 'not found');
+
       this.orderbook = book;
       this.candles = candles;
       this.fundingHistory = funding;
@@ -117,11 +135,44 @@ export class StateManager {
     const unsubCtx = wsManager.subscribeToAssetCtx(this.currentCoin, (data) => {
       if (data.coin === this.currentCoin) {
         this.assetContext = data.ctx;
+
+        // Update OI divergence detector
+        const oi = parseFloat(data.ctx.openInterest);
+        const price = parseFloat(data.ctx.markPx);
+        oiDivergenceDetector.addSnapshot(oi, price);
+
         this.recalculate();
       }
     });
 
-    this.wsUnsubscribers = [unsubBook, unsubCtx];
+    // Subscribe to trades for CVD and tape
+    const unsubTrades = wsManager.subscribeToTrades(this.currentCoin, (trades: WsTrade[]) => {
+      const markPrice = this.assetContext ? parseFloat(this.assetContext.markPx) : 0;
+
+      for (const trade of trades) {
+        const side = trade.side === 'B' ? 'buy' : 'sell';
+        const size = parseFloat(trade.sz);
+        const price = parseFloat(trade.px);
+
+        // Add to CVD calculator
+        cvdCalculator.addTrade({
+          timestamp: trade.time,
+          size,
+          side,
+          price,
+        });
+
+        // Add to tape tracker
+        tapeTracker.addTrade(
+          { timestamp: trade.time, price, size, side },
+          markPrice || price
+        );
+      }
+
+      this.recalculate();
+    });
+
+    this.wsUnsubscribers = [unsubBook, unsubCtx, unsubTrades];
   }
 
   private startPolling(): void {
@@ -313,6 +364,15 @@ export class StateManager {
       fundingHistory: fundingRates.length > 0 ? fundingRates : [fundingRate],
     });
 
+    // Get CVD state
+    const cvd: CVDState = cvdCalculator.getState();
+
+    // Get tape state
+    const tape: TapeState = tapeTracker.getState();
+
+    // Get OI divergence state
+    const oiDivergence: OIDivergenceState = oiDivergenceDetector.getState();
+
     this.state = {
       coin: this.currentCoin,
       market,
@@ -323,6 +383,9 @@ export class StateManager {
       gravity,
       compression,
       trap,
+      cvd,
+      tape,
+      oiDivergence,
       lastUpdate: Date.now(),
     };
 
@@ -338,6 +401,11 @@ export class StateManager {
     // Unsubscribe WebSockets
     this.wsUnsubscribers.forEach((unsub) => unsub());
     this.wsUnsubscribers = [];
+
+    // Reset calculators
+    cvdCalculator.reset();
+    tapeTracker.reset();
+    oiDivergenceDetector.reset();
 
     // Clear data
     this.assetContext = null;

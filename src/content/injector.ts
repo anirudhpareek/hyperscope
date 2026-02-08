@@ -1,4 +1,4 @@
-import { render } from 'preact';
+import { render, h } from 'preact';
 import { Panel } from '@/panel/Panel';
 import type { AnalyticsState } from '@/types/state';
 
@@ -16,6 +16,8 @@ export class PanelInjector {
     this.container.id = PANEL_ID;
     document.body.appendChild(this.container);
 
+    console.log('[HL] Panel injected');
+
     // Render empty panel
     this.render();
   }
@@ -28,10 +30,14 @@ export class PanelInjector {
   private render(): void {
     if (!this.container) return;
 
-    render(
-      Panel({ state: this.currentState }),
-      this.container
-    );
+    try {
+      render(
+        h(Panel, { state: this.currentState }),
+        this.container
+      );
+    } catch (e) {
+      console.error('[Injector] Render error:', e);
+    }
   }
 
   remove(): void {

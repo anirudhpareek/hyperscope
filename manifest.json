@@ -3,32 +3,28 @@
   "name": "Hyperliquid Structural Analytics",
   "version": "1.0.0",
   "description": "High-signal structural analytics overlay for Hyperliquid trading",
-  "permissions": ["storage"],
+  "permissions": ["storage", "sidePanel", "activeTab", "tabs"],
   "host_permissions": [
     "https://api.hyperliquid.xyz/*",
-    "wss://api.hyperliquid.xyz/*"
+    "https://app.hyperliquid.xyz/*"
   ],
   "background": {
-    "service_worker": "src/background/index.js",
-    "type": "module"
+    "service_worker": "src/background/index.js"
   },
-  "content_scripts": [
-    {
-      "matches": ["https://app.hyperliquid.xyz/*"],
-      "js": ["src/content/index.js"],
-      "css": ["src/panel/styles.css"],
-      "run_at": "document_idle"
-    }
-  ],
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
   "icons": {
     "16": "public/icons/icon16.png",
     "48": "public/icons/icon48.png",
     "128": "public/icons/icon128.png"
   },
-  "web_accessible_resources": [
-    {
-      "resources": ["src/panel/*"],
-      "matches": ["https://app.hyperliquid.xyz/*"]
+  "action": {
+    "default_title": "Open HL Analytics",
+    "default_icon": {
+      "16": "public/icons/icon16.png",
+      "48": "public/icons/icon48.png",
+      "128": "public/icons/icon128.png"
     }
-  ]
+  }
 }

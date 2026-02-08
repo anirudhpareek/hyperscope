@@ -56,7 +56,7 @@ function subscribeToCoin(coin: string): void {
 }
 
 function initialize(): void {
-  console.log('[CS] Initializing Hyperliquid Analytics');
+  console.log('[HL] Initializing...');
 
   // Inject the panel
   panelInjector.inject();

@@ -16,19 +16,12 @@ export function Panel({ state }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef({ isDragging: false, startX: 0, startY: 0 });
 
-  // Dragging logic
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!dragRef.current.isDragging || !panelRef.current) return;
-
+      if (!dragRef.current.isDragging) return;
       const dx = e.clientX - dragRef.current.startX;
       const dy = e.clientY - dragRef.current.startY;
-
-      setPosition((prev) => ({
-        x: prev.x + dx,
-        y: prev.y + dy,
-      }));
-
+      setPosition((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
       dragRef.current.startX = e.clientX;
       dragRef.current.startY = e.clientY;
     };
@@ -40,7 +33,6 @@ export function Panel({ state }: Props) {
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
@@ -49,31 +41,15 @@ export function Panel({ state }: Props) {
 
   const handleDragStart = (e: MouseEvent) => {
     e.preventDefault();
-    dragRef.current = {
-      isDragging: true,
-      startX: e.clientX,
-      startY: e.clientY,
-    };
+    dragRef.current = { isDragging: true, startX: e.clientX, startY: e.clientY };
     document.body.style.cursor = 'grabbing';
-  };
-
-  const formatTime = (ts: number) => {
-    const date = new Date(ts);
-    return date.toLocaleTimeString('en-US', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
   };
 
   return (
     <div
       ref={panelRef}
       class={`hl-panel ${minimized ? 'minimized' : ''}`}
-      style={{
-        transform: `translate(${position.x}px, ${position.y}px)`,
-      }}
+      style={{ transform: `translate(${position.x}px, ${position.y}px)` }}
     >
       <div class="hl-panel-header" onMouseDown={handleDragStart}>
         <div class="hl-panel-title">
@@ -81,7 +57,7 @@ export function Panel({ state }: Props) {
           {state && <span class="hl-panel-coin">{state.coin}</span>}
         </div>
         <button class="hl-panel-minimize" onClick={() => setMinimized(!minimized)}>
-          {minimized ? '▼' : '▲'}
+          {minimized ? '▼' : '—'}
         </button>
       </div>
 
@@ -93,21 +69,21 @@ export function Panel({ state }: Props) {
           </div>
         ) : (
           <>
-            {/* Market overview */}
-            <div class="hl-section">
-              <div class="hl-row">
-                <span class="hl-row-label">Price</span>
-                <span class="hl-row-value">${formatNumber(state.market.price)}</span>
+            {/* Compact market overview */}
+            <div class="hl-market-overview">
+              <div class="hl-market-stat">
+                <div class="hl-market-stat-value">${formatNumber(state.market.price)}</div>
+                <div class="hl-market-stat-label">Price</div>
               </div>
-              <div class="hl-row">
-                <span class="hl-row-label">Open Interest</span>
-                <span class="hl-row-value">${formatNumber(state.market.openInterest * state.market.price)}</span>
+              <div class="hl-market-stat">
+                <div class="hl-market-stat-value">${formatNumber(state.market.openInterest * state.market.price)}</div>
+                <div class="hl-market-stat-label">OI</div>
               </div>
-              <div class="hl-row">
-                <span class="hl-row-label">Book Imbalance</span>
-                <span class={`hl-row-value ${state.orderbook.imbalance > 0.2 ? 'positive' : state.orderbook.imbalance < -0.2 ? 'negative' : ''}`}>
+              <div class="hl-market-stat">
+                <div class={`hl-market-stat-value ${state.orderbook.imbalance > 0.15 ? 'positive' : state.orderbook.imbalance < -0.15 ? 'negative' : ''}`}>
                   {(state.orderbook.imbalance * 100).toFixed(0)}%
-                </span>
+                </div>
+                <div class="hl-market-stat-label">Imbal</div>
               </div>
             </div>
 
@@ -117,7 +93,7 @@ export function Panel({ state }: Props) {
             <TrapRisk trap={state.trap} market={state.market} />
 
             <div class="hl-timestamp">
-              Updated {formatTime(state.lastUpdate)}
+              {new Date(state.lastUpdate).toLocaleTimeString('en-US', { hour12: false })}
             </div>
           </>
         )}
