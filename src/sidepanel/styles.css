@@ -754,16 +754,87 @@ body {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
+   Signal Insight Card
+   ───────────────────────────────────────────────────────────────────────────── */
+.hl-insight {
+  margin: var(--hl-space-md) var(--hl-space-lg);
+  padding: var(--hl-space-md);
+  border-radius: 8px;
+  border: 1px solid;
+}
+
+.hl-insight--bullish {
+  background: var(--hl-long-muted);
+  border-color: rgba(14, 203, 129, 0.3);
+}
+
+.hl-insight--bearish {
+  background: var(--hl-short-muted);
+  border-color: rgba(246, 70, 93, 0.3);
+}
+
+.hl-insight--warning {
+  background: var(--hl-warning-muted);
+  border-color: rgba(240, 185, 11, 0.3);
+}
+
+.hl-insight--info {
+  background: var(--hl-accent-muted);
+  border-color: var(--hl-accent-border);
+}
+
+.hl-insight-header {
+  display: flex;
+  align-items: center;
+  gap: var(--hl-space-sm);
+  margin-bottom: 6px;
+}
+
+.hl-insight-icon {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.hl-insight--bullish .hl-insight-icon { color: var(--hl-long); }
+.hl-insight--bearish .hl-insight-icon { color: var(--hl-short); }
+.hl-insight--warning .hl-insight-icon { color: var(--hl-warning); }
+.hl-insight--info .hl-insight-icon { color: var(--hl-accent); }
+
+.hl-insight-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hl-text-primary);
+}
+
+.hl-insight-message {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--hl-text-secondary);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
    Footer
    ───────────────────────────────────────────────────────────────────────────── */
 .hl-footer {
   margin-top: auto;
   padding: var(--hl-space-md) var(--hl-space-lg);
   text-align: center;
-  color: var(--hl-text-disabled);
-  font-size: 10px;
   border-top: 1px solid var(--hl-border);
   background: var(--hl-bg-surface);
+}
+
+.hl-footer-time {
+  color: var(--hl-text-disabled);
+  font-size: 10px;
+  margin-bottom: 6px;
+}
+
+.hl-footer-disclaimer {
+  color: var(--hl-text-disabled);
+  font-size: 9px;
+  line-height: 1.4;
+  opacity: 0.7;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────

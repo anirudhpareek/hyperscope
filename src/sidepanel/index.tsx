@@ -37,9 +37,139 @@ const DEFAULT_SETTINGS = {
   showGravity: true,
   showCompression: true,
   showTrapRisk: true,
+  showInsight: true,
 };
 
 type Settings = typeof DEFAULT_SETTINGS;
+
+// Insight generator - rule-based tips
+interface Insight {
+  type: 'bullish' | 'bearish' | 'warning' | 'info';
+  title: string;
+  message: string;
+}
+
+function generateInsight(state: AnalyticsState): Insight | null {
+  const { cvd, compression, gravity, trap, tape, oiDivergence, market } = state;
+
+  // Priority 1: Squeeze setups (high conviction)
+  if (compression.isCompressed && gravity.score === 'HIGH_BELOW' && trap.direction === 'long') {
+    return {
+      type: 'bearish',
+      title: 'Breakdown Setup',
+      message: 'Compression + liquidations clustered below + longs crowded. Breakdown could trigger cascade.',
+    };
+  }
+
+  if (compression.isCompressed && gravity.score === 'HIGH_ABOVE' && trap.direction === 'short') {
+    return {
+      type: 'bullish',
+      title: 'Breakout Setup',
+      message: 'Compression + liquidations clustered above + shorts crowded. Breakout could trigger squeeze.',
+    };
+  }
+
+  // Priority 2: CVD divergence + trap (reversal signals)
+  if (cvd.divergence === 'bullish' && trap.elevated && trap.direction === 'short') {
+    return {
+      type: 'bullish',
+      title: 'Short Squeeze Risk',
+      message: 'Bullish CVD divergence while shorts are crowded. Potential squeeze setup forming.',
+    };
+  }
+
+  if (cvd.divergence === 'bearish' && trap.elevated && trap.direction === 'long') {
+    return {
+      type: 'bearish',
+      title: 'Long Squeeze Risk',
+      message: 'Bearish CVD divergence while longs are crowded. Potential flush setup forming.',
+    };
+  }
+
+  // Priority 3: Whale activity divergence
+  if (tape.whaleBuyVolume > tape.whaleSellVolume * 2 && market.fundingAnnualized < -0.3) {
+    return {
+      type: 'bullish',
+      title: 'Smart Money Accumulation',
+      message: 'Whales aggressively buying while funding is negative. Potential accumulation phase.',
+    };
+  }
+
+  if (tape.whaleSellVolume > tape.whaleBuyVolume * 2 && market.fundingAnnualized > 0.3) {
+    return {
+      type: 'bearish',
+      title: 'Smart Money Distribution',
+      message: 'Whales aggressively selling while funding is positive. Potential distribution phase.',
+    };
+  }
+
+  // Priority 4: OI divergence patterns
+  if (oiDivergence.pattern === 'short_covering' && oiDivergence.strength !== 'weak') {
+    return {
+      type: 'bullish',
+      title: 'Short Covering Rally',
+      message: 'Price rising while OI falling. Shorts closing positions, not new longs entering.',
+    };
+  }
+
+  if (oiDivergence.pattern === 'long_liquidation' && oiDivergence.strength !== 'weak') {
+    return {
+      type: 'bearish',
+      title: 'Long Liquidation Cascade',
+      message: 'Price falling while OI falling. Longs being forced out, watch for capitulation.',
+    };
+  }
+
+  // Priority 5: Extreme funding
+  if (Math.abs(market.fundingAnnualized) > 1) {
+    const direction = market.fundingAnnualized > 0 ? 'longs' : 'shorts';
+    const opposite = market.fundingAnnualized > 0 ? 'short' : 'long';
+    return {
+      type: 'warning',
+      title: 'Extreme Funding',
+      message: `${direction.charAt(0).toUpperCase() + direction.slice(1)} paying ${Math.abs(market.fundingAnnualized * 100).toFixed(0)}% annualized. Crowded trade, consider ${opposite} bias.`,
+    };
+  }
+
+  // Priority 6: Strong CVD momentum
+  if (cvd.momentum === 'strong_buy' && tape.buyIntensity > 65) {
+    return {
+      type: 'bullish',
+      title: 'Strong Buying Pressure',
+      message: 'Aggressive buying across timeframes. Order flow strongly favors bulls.',
+    };
+  }
+
+  if (cvd.momentum === 'strong_sell' && tape.sellIntensity > 65) {
+    return {
+      type: 'bearish',
+      title: 'Strong Selling Pressure',
+      message: 'Aggressive selling across timeframes. Order flow strongly favors bears.',
+    };
+  }
+
+  // Priority 7: Compression warning
+  if (compression.isCompressed) {
+    return {
+      type: 'warning',
+      title: 'Volatility Compression',
+      message: 'Multiple compression signals active. Expansion likely soon, direction uncertain.',
+    };
+  }
+
+  // Priority 8: Trap risk
+  if (trap.elevated) {
+    const crowded = trap.direction === 'long' ? 'Longs' : 'Shorts';
+    return {
+      type: 'warning',
+      title: `${crowded} Crowded`,
+      message: `${crowded} appear crowded based on OI and funding. Elevated squeeze risk.`,
+    };
+  }
+
+  // No strong signal
+  return null;
+}
 
 // Settings icon SVG
 const SettingsIcon = () => (
@@ -149,6 +279,14 @@ const SettingsPanel = ({
               <div class="hl-settings-item-desc">Position squeeze risk</div>
             </div>
             <Toggle checked={settings.showTrapRisk} onChange={(v) => onSettingsChange('showTrapRisk', v)} id="showTrapRisk" />
+          </div>
+
+          <div class="hl-settings-item">
+            <div>
+              <div class="hl-settings-item-label">Signal Insight</div>
+              <div class="hl-settings-item-desc">AI-like tips based on metrics</div>
+            </div>
+            <Toggle checked={settings.showInsight} onChange={(v) => onSettingsChange('showInsight', v)} id="showInsight" />
           </div>
         </div>
       </div>
@@ -273,6 +411,9 @@ function SidePanel() {
 
   const { market, pressure, gravity, compression, trap, orderbook, volatility, cvd, tape, oiDivergence } = state;
 
+  // Generate insight
+  const insight = generateInsight(state);
+
   // Helper to format large numbers compactly
   const formatCompact = (n: number): string => {
     if (Math.abs(n) >= 1000000) return (n / 1000000).toFixed(1) + 'M';
@@ -348,6 +489,22 @@ function SidePanel() {
           <div class="hl-stat-label">Funding (Ann.)</div>
         </div>
       </div>
+
+      {/* Signal Insight */}
+      {settings.showInsight && insight && (
+        <div class={`hl-insight hl-insight--${insight.type}`}>
+          <div class="hl-insight-header">
+            <span class="hl-insight-icon">
+              {insight.type === 'bullish' && '▲'}
+              {insight.type === 'bearish' && '▼'}
+              {insight.type === 'warning' && '⚠'}
+              {insight.type === 'info' && 'ℹ'}
+            </span>
+            <span class="hl-insight-title">{insight.title}</span>
+          </div>
+          <div class="hl-insight-message">{insight.message}</div>
+        </div>
+      )}
 
       {/* CVD (Cumulative Volume Delta) */}
       {settings.showCVD && (
@@ -627,7 +784,10 @@ function SidePanel() {
 
       {/* Footer */}
       <div class="hl-footer">
-        Updated {new Date(state.lastUpdate).toLocaleTimeString()}
+        <div class="hl-footer-time">Updated {new Date(state.lastUpdate).toLocaleTimeString()}</div>
+        <div class="hl-footer-disclaimer">
+          Not financial advice. For informational purposes only. Trade at your own risk.
+        </div>
       </div>
     </div>
   );
