@@ -1,6 +1,6 @@
-# Hyperliquid Structural Analytics
+# HyperScope
 
-Chrome extension that overlays high-signal structural analytics on Hyperliquid's trading interface.
+Advanced trading analytics extension for Hyperliquid. Real-time structural insights, whale activity, liquidation gravity, and compression signals.
 
 ## Features
 
@@ -37,7 +37,7 @@ Monitors for crowded positioning:
 ### Development Build
 
 ```bash
-cd ~/hyperliquid-analytics
+cd ~/hyperscope
 npm install
 npm run build
 ```

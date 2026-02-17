@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Hyperliquid Structural Analytics",
-  "version": "1.1.0",
-  "description": "Real-time structural analytics for Hyperliquid: CVD, whale activity, liquidation gravity, compression signals & more",
+  "name": "HyperScope",
+  "version": "1.2.0",
+  "description": "Advanced trading analytics for Hyperliquid: CVD, whale activity, liquidation gravity, compression signals & real-time insights",
   "permissions": ["storage", "sidePanel", "activeTab", "tabs"],
   "host_permissions": [
     "https://api.hyperliquid.xyz/*",
@@ -20,7 +20,7 @@
     "128": "public/icons/icon128.png"
   },
   "action": {
-    "default_title": "Open HL Analytics",
+    "default_title": "Open HyperScope",
     "default_icon": {
       "16": "public/icons/icon16.png",
       "48": "public/icons/icon48.png",
